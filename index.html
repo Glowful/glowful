@@ -1,0 +1,2326 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Glowlist</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root{
+  --bg:#060814;
+  --bg-deep:#030408;
+  --panel:#0d1330;
+  --panel-2:#141b3f;
+  --border:#232c52;
+  --border-soft:#1a2140;
+  --text:#c9d2f2;
+  --text-dim:#7580ad;
+  --text-faint:#454f7a;
+  --accent:#8b9dff;
+  --danger:#ff4f5e;
+  --danger-dim:#7a2530;
+  --font-display:'Press Start 2P', 'Courier New', monospace;
+  --font-body:'VT323', 'Courier New', monospace;
+  color-scheme: dark;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; overscroll-behavior:none; }
+body{ background:var(--bg-deep); }
+
+.app{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  background:
+    radial-gradient(1200px 700px at 15% -10%, #10184a44, transparent 60%),
+    radial-gradient(900px 600px at 110% 10%, #2a0f4a3a, transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  overflow:hidden;
+  position:relative;
+  -webkit-tap-highlight-color:transparent;
+}
+/* Applied directly to every element (not just relying on inheritance from
+   .app), since form controls (input/textarea/button) don't always inherit
+   font-feature properties consistently across browsers — this is belt and
+   suspenders to make sure "ff" etc never renders as a combined ligature
+   glyph anywhere in the app. */
+.app, .app *{
+  font-variant-ligatures:none;
+  -webkit-font-variant-ligatures:none;
+  font-feature-settings:"liga" 0, "clig" 0, "dlig" 0, "hlig" 0, "calt" 0;
+}
+
+/* ---------- toolbar ---------- */
+.toolbar{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border-bottom:1px solid var(--border-soft);
+  background:#080b1cf2;
+  z-index:40;
+}
+.icon-btn{
+  width:38px;height:38px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text-dim);
+  cursor:pointer;
+  flex:0 0 auto;
+  transition:border-color .15s, color .15s, transform .1s;
+}
+.icon-btn svg{ width:18px;height:18px; }
+.icon-btn:hover{ color:var(--accent); border-color:var(--accent); }
+.icon-btn:active{ transform:scale(.92); }
+.icon-btn:disabled{ opacity:.32; cursor:default; }
+.icon-btn:disabled:hover{ color:var(--text-dim); border-color:var(--border); }
+
+.view-toggle{
+  flex:1 1 auto;
+  display:flex;
+  justify-content:center;
+}
+.view-toggle-inner{
+  display:flex;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:3px;
+  gap:3px;
+}
+.view-toggle-btn{
+  font-family:var(--font-body);
+  font-size:17px;
+  letter-spacing:.04em;
+  padding:6px 16px;
+  border-radius:7px;
+  background:transparent;
+  border:none;
+  color:var(--text-dim);
+  cursor:pointer;
+}
+.view-toggle-btn.active{
+  background:linear-gradient(180deg,#2a3570,#1a2350);
+  color:#eaf0ff;
+  box-shadow:0 0 0 1px var(--accent) inset, 0 0 14px #4d5eff55;
+}
+.toolbar-right{ display:flex; gap:8px; flex:0 0 auto; }
+
+/* ---------- stage / viewports ---------- */
+.stage{ flex:1 1 auto; position:relative; overflow:hidden; }
+.viewport{
+  position:absolute; inset:0;
+  overflow:hidden;
+  touch-action:none;
+  cursor:grab;
+}
+.viewport.panning{ cursor:grabbing; }
+
+.sparkles{ position:absolute; inset:0; pointer-events:none; }
+.sparkle{
+  position:absolute;
+  width:2px;height:2px;
+  background:#cfe0ff;
+  border-radius:50%;
+  box-shadow:0 0 4px 1px #cfe0ffaa;
+  animation:twinkle 3.4s ease-in-out infinite;
+}
+@keyframes twinkle{
+  0%,100%{ opacity:.15; transform:scale(1); }
+  50%{ opacity:1; transform:scale(1.6); }
+}
+
+/* ---------- list view ---------- */
+.list-canvas{
+  position:absolute;
+  left:50%; top:0;
+  transform-origin:0 0;
+  width:min(720px, 88vw);
+  margin-left:calc(min(720px, 88vw) / -2);
+  padding:20px 6px 200px;
+  display:flex;
+  flex-direction:column;
+  gap:11px;
+}
+.list-item{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  font-family:var(--font-body);
+  background:linear-gradient(180deg, #0d1330cc, #0a0f26cc);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:11px 14px;
+  cursor:pointer;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:none;
+  transition:border-color .15s, box-shadow .2s, opacity .2s;
+}
+.list-item:active{ border-color:var(--accent); }
+.list-item.list-item-ghost{
+  visibility:hidden;
+}
+.list-item.list-item-flying{
+  z-index:1000;
+  opacity:1;
+  border-color:var(--accent);
+  box-shadow:0 10px 30px #000a, 0 0 0 1px var(--accent);
+}
+.list-item .glow-text{
+  position:relative;
+  z-index:1;
+  width:fit-content;
+  max-width:100%;
+  text-align:center;
+  font-size:22px;
+  line-height:1.35;
+  word-break:break-word;
+  white-space:pre-wrap;
+}
+.glow-blob{
+  position:absolute;
+  z-index:0;
+  pointer-events:none;
+}
+.glow-pulse{ animation:glowPulse .8s ease-out; }
+@keyframes glowPulse{
+  0%{ filter:brightness(1); }
+  35%{ filter:brightness(2.1); transform:scale(1.035); }
+  100%{ filter:brightness(1); transform:scale(1); }
+}
+
+/* ---------- field view ---------- */
+.field-canvas{
+  position:absolute; left:0; top:0;
+  transform-origin:0 0;
+  width:1px; height:1px;
+}
+.field-item{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  max-width:340px;
+  padding:10px 14px;
+  border-radius:9px;
+  background:linear-gradient(180deg,#0d1330cc,#0a0f26cc);
+  border:1px solid var(--border);
+  cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:none;
+  white-space:pre-wrap;
+  text-align:center;
+  font-size:21px;
+  line-height:1.3;
+}
+.field-text{
+  position:relative;
+  z-index:1;
+  width:fit-content;
+  max-width:100%;
+}
+.field-item.dragging{
+  cursor:grabbing;
+  z-index:60;
+  border-color:var(--accent);
+  box-shadow:0 14px 34px #000b;
+}
+.field-resize, .field-resize-bottom{
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s ease;
+}
+.field-item.selected .field-resize, .field-item.selected .field-resize-bottom{
+  opacity:1;
+  pointer-events:auto;
+}
+.field-resize{
+  position:absolute; right:-11px; top:50%; transform:translateY(-50%);
+  width:22px; height:38px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:ew-resize;
+  touch-action:none;
+}
+.field-resize::after{
+  content:'';
+  width:5px; height:24px; border-radius:2px;
+  background:var(--accent);
+  box-shadow:0 0 6px var(--accent);
+}
+.field-resize:active::after{ background:#fff; }
+.field-resize-bottom{
+  position:absolute; left:50%; bottom:-11px; transform:translateX(-50%);
+  width:38px; height:22px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:ns-resize;
+  touch-action:none;
+}
+.field-resize-bottom::after{
+  content:'';
+  width:24px; height:5px; border-radius:2px;
+  background:var(--accent);
+  box-shadow:0 0 6px var(--accent);
+}
+.field-resize-bottom:active::after{ background:#fff; }
+.field-item.heading-item{
+  background:none;
+  border:none;
+  padding:4px 6px;
+  font-family:var(--font-display);
+  font-size:15px;
+  line-height:1.6;
+  color:#e7ecff;
+  text-shadow:0 0 10px #6f7dff99, 0 0 26px #6f7dff44;
+  max-width:340px;
+}
+
+/* ---------- fabs ---------- */
+.fab-row{
+  position:absolute;
+  right:18px; bottom:calc(18px + env(safe-area-inset-bottom,0px));
+  display:flex; flex-direction:column; align-items:flex-end;
+  gap:10px;
+  z-index:35;
+}
+.fab{
+  font-family:var(--font-body);
+  font-size:18px;
+  letter-spacing:.03em;
+  padding:12px 20px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  cursor:pointer;
+  display:inline-flex; align-items:center; gap:8px;
+  box-shadow:0 6px 20px #000a;
+}
+.fab.primary{
+  background:linear-gradient(180deg,#3a4bd6,#232f9c);
+  color:#f1f4ff;
+  border-color:#5a6bff;
+  box-shadow:0 6px 20px #000a, 0 0 18px #4d5eff66;
+}
+.fab.secondary{
+  background:var(--panel);
+  color:var(--text);
+  font-size:16px;
+  padding:9px 16px;
+}
+.fab:active{ transform:scale(.96); }
+.fab-left{
+  position:absolute;
+  left:18px; bottom:calc(18px + env(safe-area-inset-bottom,0px));
+  z-index:35;
+}
+
+/* ---------- edit overlay ---------- */
+.overlay{
+  position:absolute; inset:0;
+  z-index:80;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.overlay[hidden]{ display:none; }
+.overlay-backdrop{
+  position:absolute; inset:0;
+  background:#03040ce6;
+}
+.sheet{
+  position:relative;
+  width:100%; max-width:560px;
+  background:linear-gradient(180deg,#101736,#0a0e24);
+  border:1px solid var(--border);
+  border-bottom:none;
+  border-radius:16px 16px 0 0;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));
+  box-shadow:0 -10px 40px #000c;
+  display:flex; flex-direction:column; gap:16px;
+  animation:sheetUp .2s ease-out;
+}
+@keyframes sheetUp{ from{ transform:translateY(24px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+.sheet-grip{ width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto -4px; }
+.edit-textarea{
+  width:100%;
+  min-height:84px;
+  resize:vertical;
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:12px 14px;
+  color:#fff;
+  font-family:var(--font-body);
+  font-size:22px;
+  line-height:1.35;
+  outline:none;
+}
+.edit-textarea:focus{ border-color:var(--accent); }
+
+.dial-row{ display:flex; align-items:center; gap:18px; justify-content:center; margin-bottom:42px; }
+.dial-wrap{ display:flex; align-items:center; gap:16px; }
+.dial{
+  width:104px;height:104px;border-radius:50%;
+  position:relative;
+  border:2px solid var(--border);
+  background:radial-gradient(circle at 50% 40%, var(--panel-2), var(--bg-deep) 75%);
+  touch-action:none;
+  cursor:pointer;
+  flex:0 0 auto;
+}
+.dial-tick{
+  position:absolute; left:50%; top:6px; width:2px; height:6px;
+  background:var(--text-faint);
+  transform-origin:1px 46px;
+}
+.dial-needle{
+  position:absolute; left:50%; top:50%;
+  width:4px; height:38px;
+  background:currentColor;
+  border-radius:2px;
+  transform-origin:50% 100%;
+  transform:translate(-50%,-100%) rotate(0deg);
+  box-shadow:0 0 10px currentColor;
+}
+.dial-center{
+  position:absolute; left:50%; top:50%; width:12px; height:12px;
+  background:var(--bg-deep); border:2px solid currentColor; border-radius:50%;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 8px currentColor;
+}
+.dial-value{
+  position:absolute; left:50%; bottom:-26px; transform:translateX(-50%);
+  font-family:var(--font-display); font-size:13px;
+}
+.dial-side{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+.dial-side .dial-label{ font-size:14px; letter-spacing:.15em; color:var(--text-dim); }
+.dial-btns{ display:flex; gap:6px; }
+
+.edit-actions{ display:flex; flex-direction:column; gap:10px; }
+.edit-actions-row{ display:flex; gap:10px; }
+.pixel-btn{
+  font-family:var(--font-body);
+  font-size:18px;
+  letter-spacing:.03em;
+  padding:11px 14px;
+  border-radius:9px;
+  border:1px solid var(--border);
+  background:var(--panel);
+  color:var(--text);
+  cursor:pointer;
+  flex:1;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.pixel-btn:active{ transform:scale(.97); }
+.pixel-btn.primary{
+  background:linear-gradient(180deg,#3a4bd6,#232f9c);
+  border-color:#5a6bff; color:#fff;
+}
+.pixel-btn.primary.large{ flex:1.6; }
+.pixel-btn.danger{
+  background:transparent; border:1px solid var(--danger-dim); color:var(--danger);
+}
+.pixel-btn.danger svg{ width:16px; height:16px; }
+.pixel-btn.danger:active{ background:#ff4f5e1a; }
+.pixel-btn.ghost{ background:transparent; }
+.pixel-btn.small{ flex:0 0 auto; width:44px; padding:11px 0; }
+
+/* ---------- settings drawer ---------- */
+.drawer-overlay{ position:absolute; inset:0; z-index:90; }
+.drawer-overlay[hidden]{ display:none; }
+.drawer-backdrop{ position:absolute; inset:0; background:#03040cbb; }
+.drawer{
+  position:absolute; top:0; left:0; bottom:0;
+  width:min(300px, 84vw);
+  background:linear-gradient(180deg,#0c1230,#080b20);
+  border-right:1px solid var(--border);
+  padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;
+  display:flex; flex-direction:column; gap:6px;
+  animation:drawerIn .18s ease-out;
+}
+@keyframes drawerIn{ from{ transform:translateX(-16px); opacity:0;} to{ transform:translateX(0); opacity:1;} }
+.drawer-title{
+  font-family:var(--font-display);
+  font-size:14px;
+  color:#eaf0ff;
+  text-shadow:0 0 12px #6f7dff88;
+  margin:2px 0 14px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.drawer-btn{
+  display:flex; align-items:center; gap:10px;
+  width:100%;
+  padding:12px 12px;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:9px;
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:19px;
+  text-align:left;
+  cursor:pointer;
+}
+.drawer-btn:hover{ background:var(--panel); border-color:var(--border); }
+.drawer-btn svg{ width:17px;height:17px; color:var(--text-dim); flex:0 0 auto; }
+.drawer-btn.danger{ color:var(--danger); }
+.drawer-btn.danger svg{ color:var(--danger); }
+.drawer-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 12px; font-size:19px;
+}
+.drawer-sep{ height:1px; background:var(--border-soft); margin:10px 0; }
+.switch{ position:relative; width:40px; height:22px; }
+.switch input{ opacity:0; width:100%; height:100%; margin:0; cursor:pointer; }
+.switch .track{
+  position:absolute; inset:0; background:var(--panel-2); border:1px solid var(--border);
+  border-radius:11px; pointer-events:none; transition:.15s;
+}
+.switch .thumb{
+  position:absolute; left:2px; top:2px; width:16px; height:16px; border-radius:50%;
+  background:var(--text-dim); transition:.15s; pointer-events:none;
+}
+.switch input:checked + .track{ background:#2a3570; border-color:var(--accent); }
+.switch input:checked + .track + .thumb{ transform:translateX(18px); background:#eaf0ff; box-shadow:0 0 8px var(--accent); }
+
+/* ---------- table view ---------- */
+.table-view{
+  position:absolute; inset:0; z-index:70;
+  background:var(--bg);
+  display:flex; flex-direction:column;
+}
+.table-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-bottom:1px solid var(--border-soft);
+}
+.table-header h2{
+  font-family:var(--font-display); font-size:14px; margin:0; color:#eaf0ff;
+  text-shadow:0 0 12px #6f7dff88;
+}
+.table-scroll{ flex:1; overflow:auto; padding:10px 12px 90px; }
+table.glow-table{ width:100%; border-collapse:collapse; }
+.glow-table th{
+  text-align:left; font-family:var(--font-body); font-size:15px; letter-spacing:.08em;
+  color:var(--text-dim); text-transform:uppercase; padding:8px 10px; position:sticky; top:0; background:var(--bg);
+}
+.glow-table td{ padding:6px 8px; border-bottom:1px solid var(--border-soft); vertical-align:middle; }
+.glow-table input[type="text"]{
+  width:100%; background:transparent; border:1px solid transparent; border-radius:6px;
+  padding:8px 8px; color:var(--text); font-family:var(--font-body); font-size:19px; outline:none;
+}
+.glow-table input[type="text"]:focus{ border-color:var(--border); background:var(--panel); }
+.glow-table input[type="number"]{
+  width:56px; background:var(--panel); border:1px solid var(--border); border-radius:6px;
+  padding:7px 6px; color:var(--text); font-family:var(--font-body); font-size:18px; text-align:center; outline:none;
+  font-variant-numeric:tabular-nums;
+}
+.glow-table input[type="number"]:focus{ border-color:var(--accent); }
+.glow-table .row-del{ background:none;border:none;color:var(--text-faint);cursor:pointer;padding:6px; }
+.glow-table .row-del:hover{ color:var(--danger); }
+.table-add{ margin:14px 8px; }
+
+/* ---------- toast / ctx / confirm ---------- */
+.toast{
+  position:absolute; left:50%; bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  background:#10173aee; border:1px solid var(--border); color:var(--text);
+  padding:10px 16px; border-radius:9px; font-size:18px; z-index:120;
+  box-shadow:0 8px 24px #000a;
+  animation:toastIn .18s ease-out;
+}
+.toast[hidden]{ display:none; }
+@keyframes toastIn{ from{ opacity:0; transform:translate(-50%,8px);} to{ opacity:1; transform:translate(-50%,0);} }
+
+.ctx-menu{
+  position:absolute; z-index:95;
+  background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+  box-shadow:0 8px 24px #000a; overflow:hidden;
+}
+.ctx-menu[hidden]{ display:none; }
+.ctx-menu button{
+  display:block; width:100%; padding:10px 18px; background:none; border:none;
+  color:var(--text); font-family:var(--font-body); font-size:18px; text-align:left; cursor:pointer;
+}
+.ctx-menu button:hover{ background:var(--panel); }
+
+.confirm-overlay{
+  position:absolute; inset:0; z-index:110; display:flex; align-items:center; justify-content:center;
+  padding:20px;
+}
+.confirm-overlay[hidden]{ display:none; }
+.confirm-box{
+  position:relative;
+  background:var(--panel); border:1px solid var(--border); border-radius:12px;
+  padding:20px; max-width:340px; width:100%;
+  display:flex; flex-direction:column; gap:16px;
+  box-shadow:0 14px 40px #000c;
+}
+.confirm-box p{ margin:0; font-size:19px; line-height:1.4; }
+.confirm-actions{ display:flex; gap:10px; }
+
+/* ---------- intro / onboarding ---------- */
+.intro-overlay{
+  position:absolute; inset:0; z-index:130;
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+}
+.intro-overlay[hidden]{ display:none; }
+.intro-backdrop{ position:absolute; inset:0; background:#03040cf2; }
+.intro-box{
+  position:relative;
+  width:100%; max-width:420px;
+  background:linear-gradient(180deg,#101736,#0a0e24);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:52px 26px 26px;
+  box-shadow:0 20px 60px #000d;
+  display:flex; flex-direction:column; align-items:center;
+  animation:sheetUp .2s ease-out;
+}
+.intro-close{ position:absolute; top:8px; right:8px; }
+.intro-slide{ display:flex; flex-direction:column; align-items:center; text-align:left; gap:14px; }
+.intro-title{
+  font-family:var(--font-body);
+  font-size:52px;
+  letter-spacing:.03em;
+  line-height:1.1;
+  margin:0 0 4px;
+  text-align:center;
+  align-self:center;
+  /* Near-white fill keeps the letterforms crisp; the pink lives entirely in
+     the shadow halo instead of the fill, so the glow doesn't blur into the
+     letters themselves the way a same-hue fill+glow did. */
+  color:#fff6fb;
+  text-shadow:0 0 3px hsl(308 90% 68%), 0 0 10px hsl(308 90% 62%), 0 0 22px hsl(308 85% 55% / .55);
+}
+.intro-body{ margin:0; font-size:20px; line-height:1.5; color:var(--text); word-break:break-word; }
+.intro-body a{ color:var(--accent); text-decoration:underline; }
+.intro-row{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; }
+.intro-row .intro-body{ flex:1; }
+.intro-row-slide2{ align-items:center; gap:16px; }
+.intro-col{ display:flex; flex-direction:column; gap:14px; flex:1; align-items:center; text-align:center; }
+.intro-col .intro-actions{ width:100%; }
+.deco-icon{ flex:0 0 auto; shape-rendering:crispEdges; }
+.deco-souffle{
+  width:52px; height:auto;
+  shape-rendering:geometricPrecision;
+  filter:drop-shadow(0 0 5px hsl(308 90% 68%)) drop-shadow(0 0 12px hsl(308 85% 55%));
+}
+.deco-souffle .sf-top{ fill:hsl(308 90% 76%); }
+.deco-souffle .sf-rim{ fill:hsl(308 75% 52%); }
+.deco-souffle .sf-cup{ fill:var(--panel-2); }
+.deco-star{ width:24px; height:auto; filter:drop-shadow(0 0 3px #cfe0ffcc) drop-shadow(0 0 8px #8b9dff99); }
+.deco-star rect{ fill:#e7edff; }
+.deco-floppy-wrap{ position:relative; flex:0 0 auto; }
+.deco-floppy{ width:48px; height:auto; filter:drop-shadow(0 0 7px #4d5eff55); }
+.deco-floppy .fl-body{ fill:var(--accent); }
+.deco-floppy .fl-notch{ fill:#101736; }
+.deco-floppy .fl-label{ fill:#eaf0ff; }
+.deco-floppy .fl-slot{ fill:var(--bg-deep); }
+.deco-star-accent{ position:absolute; top:-8px; left:-8px; width:16px; }
+.intro-actions{ display:flex; width:100%; margin-top:6px; }
+.intro-actions.align-right{ justify-content:flex-end; }
+.intro-actions.align-center{ justify-content:center; }
+.intro-actions .pixel-btn{ flex:0 0 auto; padding-left:26px; padding-right:26px; }
+.intro-dots{ display:flex; gap:7px; margin-top:18px; }
+.intro-dot{ width:7px; height:7px; border-radius:50%; background:var(--border); }
+.intro-dot.active{ background:var(--accent); box-shadow:0 0 6px var(--accent); }
+
+.sr-only{ position:absolute; width:1px;height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+</style>
+
+<div class="app" id="app">
+  <header class="toolbar">
+    <button class="icon-btn" id="menuBtn" aria-label="Menu" type="button"></button>
+    <div class="view-toggle">
+      <div class="view-toggle-inner">
+        <button class="view-toggle-btn active" data-view="list" type="button">List</button>
+        <button class="view-toggle-btn" data-view="field" type="button">Map</button>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <button class="icon-btn" id="undoBtn" aria-label="Undo" type="button" disabled></button>
+      <button class="icon-btn" id="redoBtn" aria-label="Redo" type="button" disabled></button>
+      <button class="icon-btn" id="resetZoomBtn" aria-label="Reset zoom" type="button"></button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="viewport" id="listViewport">
+      <div class="sparkles" id="sparkleLayer"></div>
+      <div class="list-canvas" id="listCanvas"></div>
+    </div>
+    <div class="viewport" id="fieldViewport" hidden>
+      <div class="sparkles" id="fieldSparkleLayer"></div>
+      <div class="field-canvas" id="fieldCanvas"></div>
+    </div>
+    <div class="table-view" id="tableView" hidden>
+      <div class="table-header">
+        <h2>Table View</h2>
+        <button class="icon-btn" id="closeTableBtn" aria-label="Close table" type="button"></button>
+      </div>
+      <div class="table-scroll">
+        <table class="glow-table">
+          <thead><tr><th style="width:56%">Text</th><th>Glow</th><th></th></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <button class="pixel-btn table-add" id="tableAddRow" type="button">+ Add Row</button>
+      </div>
+    </div>
+  </main>
+
+  <div class="fab-row">
+    <button class="fab primary" id="addItemBtn" type="button">+ Add</button>
+  </div>
+  <button class="fab secondary fab-left" id="addHeadingBtn" type="button" hidden>+ Heading</button>
+
+  <!-- edit sheet -->
+  <div class="overlay" id="editOverlay" hidden>
+    <div class="overlay-backdrop" id="editBackdrop"></div>
+    <div class="sheet">
+      <div class="sheet-grip"></div>
+      <textarea class="edit-textarea" id="editText" rows="2" placeholder="Type something glowing…"></textarea>
+      <div class="dial-row" id="dialRow">
+        <div class="dial-wrap">
+          <div class="dial" id="glowDial">
+            <div class="dial-needle" id="dialNeedle"></div>
+            <div class="dial-center" id="dialCenter"></div>
+            <div class="dial-value" id="dialValue">1</div>
+          </div>
+        </div>
+        <div class="dial-side">
+          <span class="dial-label">GLOW</span>
+          <div class="dial-btns">
+            <button class="icon-btn" id="dialMinus" type="button" aria-label="Decrease glow">−</button>
+            <button class="icon-btn" id="dialPlus" type="button" aria-label="Increase glow">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="edit-actions">
+        <div class="edit-actions-row">
+          <button class="pixel-btn danger small" id="editDelete" type="button" aria-label="Delete"></button>
+          <button class="pixel-btn ghost" id="editCancel" type="button">✕ Cancel</button>
+          <button class="pixel-btn primary large" id="editSave" type="button">Save ✓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- settings drawer -->
+  <div class="drawer-overlay" id="settingsOverlay" hidden>
+    <div class="drawer-backdrop" id="settingsBackdrop"></div>
+    <div class="drawer">
+      <div class="drawer-title">
+        <span>SETTINGS</span>
+        <button class="icon-btn" id="closeSettingsBtn" aria-label="Close" type="button"></button>
+      </div>
+      <button class="drawer-btn" id="openTableBtn" type="button"></button>
+      <button class="drawer-btn" id="exportBtn" type="button"></button>
+      <button class="drawer-btn" id="importBtn" type="button"></button>
+      <button class="drawer-btn" id="showIntroBtn" type="button"></button>
+      <input type="file" id="importFile" accept="application/json" class="sr-only" tabindex="-1">
+      <div class="drawer-sep"></div>
+      <div class="drawer-row">
+        <span>Sparkles</span>
+        <label class="switch"><input type="checkbox" id="sparkleToggle" checked><span class="track"></span><span class="thumb"></span></label>
+      </div>
+      <div class="drawer-sep"></div>
+      <div class="drawer-row">
+        <span>Opens on</span>
+        <div class="view-toggle-inner" id="defaultViewToggle">
+          <button class="view-toggle-btn" data-default-view="list" type="button">List</button>
+          <button class="view-toggle-btn" data-default-view="field" type="button">Map</button>
+        </div>
+      </div>
+      <div class="drawer-sep"></div>
+      <button class="drawer-btn" id="aboutBtn" type="button"></button>
+      <div class="drawer-sep"></div>
+      <button class="drawer-btn danger" id="resetAllBtn" type="button"></button>
+    </div>
+  </div>
+
+  <!-- context menu (paste) -->
+  <div class="ctx-menu" id="ctxMenu" hidden>
+    <button id="ctxPaste" type="button">Paste</button>
+  </div>
+  <textarea class="sr-only" id="pasteCatcher" tabindex="-1" aria-hidden="true"></textarea>
+
+  <!-- confirm dialog -->
+  <div class="confirm-overlay" id="confirmOverlay" hidden>
+    <div class="confirm-backdrop" id="confirmBackdrop" style="position:absolute;inset:0;"></div>
+    <div class="confirm-box">
+      <p id="confirmMessage">Are you sure?</p>
+      <div class="confirm-actions">
+        <button class="pixel-btn ghost" id="confirmCancel" type="button">Cancel</button>
+        <button class="pixel-btn primary" id="confirmOk" type="button">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- intro / onboarding -->
+  <div class="intro-overlay" id="introOverlay" hidden>
+    <div class="intro-backdrop" id="introBackdrop"></div>
+    <div class="intro-box">
+      <button class="icon-btn intro-close" id="introCloseBtn" aria-label="Close intro" type="button"></button>
+      <div class="intro-slide" id="introSlide1">
+        <h1 class="intro-title">Glowful</h1>
+        <p class="intro-body">This is a place to put those fun things you really want to do and keep coming back to.</p>
+        <div class="intro-row">
+          <svg class="deco-icon deco-souffle" viewBox="0 0 40 40" aria-hidden="true">
+            <ellipse class="sf-top" cx="12" cy="18" rx="8" ry="6"/>
+            <ellipse class="sf-top" cx="20" cy="15" rx="9" ry="7"/>
+            <ellipse class="sf-top" cx="28" cy="18" rx="8" ry="6"/>
+            <rect class="sf-rim" x="8" y="20" width="24" height="4" rx="1.5"/>
+            <path class="sf-cup" d="M10 24 L30 24 L27 37 C27 39 13 39 13 37 Z"/>
+          </svg>
+          <p class="intro-body">If you keep saying "bake a souffle" then the souffle will start to glow more! You can also adjust item glow manually.</p>
+        </div>
+        <div class="intro-row">
+          <svg class="deco-icon deco-star" viewBox="0 0 7 7" aria-hidden="true">
+            <rect x="3" y="0" width="1" height="2"/>
+            <rect x="2" y="2" width="3" height="1"/>
+            <rect x="0" y="3" width="7" height="1"/>
+            <rect x="2" y="4" width="3" height="1"/>
+            <rect x="3" y="5" width="1" height="2"/>
+          </svg>
+          <p class="intro-body">View stuff on a star map or as a list!</p>
+        </div>
+        <div class="intro-actions align-right"><button class="pixel-btn primary" id="introNextBtn" type="button">Next</button></div>
+      </div>
+      <div class="intro-slide" id="introSlide2" hidden>
+        <div class="intro-row intro-row-slide2">
+          <div class="deco-floppy-wrap">
+            <svg class="deco-icon deco-floppy" viewBox="0 0 10 10" aria-hidden="true">
+              <rect class="fl-body" x="0" y="0" width="10" height="10"/>
+              <rect class="fl-notch" x="7" y="0" width="3" height="3"/>
+              <rect class="fl-label" x="2" y="1" width="5" height="3"/>
+              <rect class="fl-slot" x="2" y="6" width="6" height="3"/>
+            </svg>
+            <svg class="deco-icon deco-star deco-star-accent" viewBox="0 0 7 7" aria-hidden="true">
+              <rect x="3" y="0" width="1" height="2"/>
+              <rect x="2" y="2" width="3" height="1"/>
+              <rect x="0" y="3" width="7" height="1"/>
+              <rect x="2" y="4" width="3" height="1"/>
+              <rect x="3" y="5" width="1" height="2"/>
+            </svg>
+          </div>
+          <div class="intro-col">
+            <p class="intro-body">Data is stored locally, which you can export and import — it is recommended to export to "save" your stuff.</p>
+            <div class="intro-actions align-center"><button class="pixel-btn primary" id="introStartBtn" type="button">Add your first entry</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="intro-dots">
+        <span class="intro-dot active" id="introDot1"></span>
+        <span class="intro-dot" id="introDot2"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- about -->
+  <div class="intro-overlay" id="aboutOverlay" hidden>
+    <div class="intro-backdrop" id="aboutBackdrop"></div>
+    <div class="intro-box">
+      <button class="icon-btn intro-close" id="aboutCloseBtn" aria-label="Close about" type="button"></button>
+      <div class="intro-slide">
+        <h1 class="intro-title" style="font-size:38px;">Glowful</h1>
+        <p class="intro-body">This app was generated and iterated on by Claude, an AI assistant made by Anthropic, from prompts and direction by S Wood.</p>
+        <p class="intro-body">Your data lives only in your own browser's local storage — nothing is sent anywhere else.</p>
+        <p class="intro-body">Released under the MIT License.</p>
+        <p class="intro-body"><a href="https://github.com/Glowful" target="_blank" rel="noopener">https://github.com/Glowful</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ============================== ICONS ============================== */
+const ICONS = {
+  menu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>',
+  close:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  undo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7L3.5 11.5L8 16"/><path d="M3.5 11.5H14a6 6 0 010 12h-3"/></svg>',
+  redo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7l4.5 4.5L16 16"/><path d="M20.5 11.5H10a6 6 0 000 12h3"/></svg>',
+  rect:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="6" width="14" height="12" rx="2"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0110.5 3h3A1.5 1.5 0 0115 4.5V7M6.5 7L7.3 19a2 2 0 002 1.9h5.4a2 2 0 002-1.9L17.5 7"/></svg>',
+  table:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 10h17M9.5 4.5v15"/></svg>',
+  download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 11L12 15.5 16.5 11"/><path d="M4.5 18.5h15"/></svg>',
+  upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8L12 3.5 16.5 8"/><path d="M4.5 18.5h15"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><circle cx="12" cy="7.6" r="0.75" fill="currentColor" stroke="none"/></svg>',
+  about:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a8 8 0 00-6.9 12l-1.1 4 4.2-1.1A8 8 0 1012 4z"/></svg>',
+  help:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.3.9-1.3 2.1"/><circle cx="12" cy="16.8" r="0.9" fill="currentColor" stroke="none"/></svg>',
+};
+function setIcon(el, name){ el.innerHTML = ICONS[name]; }
+
+/* ============================== CONSTANTS ============================== */
+const STORAGE_KEY = 'glowlist.state.v1';
+const MAX_HISTORY = 60;
+const MIN_SCALE = 0.35, MAX_SCALE = 3;
+const FIELD_MARGIN_X = 60;
+const FIELD_INITIAL_Y = 560;
+const FIELD_STACK_GAP = 74;
+
+const GLOW_STOPS = [
+  {n:1, h:206, s:100, l:62}, // blue
+  {n:2, h:184, s:85,  l:58}, // teal
+  {n:3, h:152, s:70,  l:54}, // green
+  {n:4, h:54,  s:90,  l:72}, // light yellow
+  {n:5, h:34,  s:95,  l:58}, // orange
+  {n:6, h:20,  s:95,  l:54}, // deeper orange
+  {n:7, h:338, s:90,  l:56}, // rose
+  {n:8, h:308, s:85,  l:62}, // pink
+  {n:9, h:300, s:75,  l:74}, // lighter pink
+];
+function glowHsl(level){
+  level = Math.max(1, Math.min(9, level));
+  for(let i=0;i<GLOW_STOPS.length-1;i++){
+    const a=GLOW_STOPS[i], b=GLOW_STOPS[i+1];
+    if(level>=a.n && level<=b.n){
+      const t=(level-a.n)/(b.n-a.n);
+      const h=a.h+(b.h-a.h)*t, s=a.s+(b.s-a.s)*t, l=a.l+(b.l-a.l)*t;
+      return `hsl(${h.toFixed(1)} ${s.toFixed(0)}% ${l.toFixed(0)}%)`;
+    }
+  }
+  return `hsl(${GLOW_STOPS[0].h} ${GLOW_STOPS[0].s}% ${GLOW_STOPS[0].l}%)`;
+}
+// Growth curve used everywhere glow SIZE/intensity scales with level: 1:1
+// per level up to 6 (unchanged from before), then slower growth from 6-9 so
+// the top of the range doesn't overshoot into "too much" the way a
+// straight (level-1) multiplier did, while staying strictly increasing.
+function glowGrowth(level){
+  level = Math.max(1, Math.min(9, level));
+  return level<=6 ? (level-1) : 5 + (level-6)*0.6;
+}
+function glowStyle(level){
+  const color = glowHsl(level);
+  const b = 5 + glowGrowth(level)*3.3;
+  const shadow = `0 0 ${b*0.5}px ${color}, 0 0 ${b}px ${color}, 0 0 ${b*2.2}px ${color}66`;
+  return {color, shadow};
+}
+function applyGlow(el, level){
+  const g = glowStyle(level);
+  el.style.color = g.color;
+  el.style.textShadow = g.shadow;
+}
+function withAlpha(hslStr, alpha){
+  return hslStr.replace(/\)$/, ` / ${alpha})`);
+}
+function measureNaturalHeight(el){
+  const prevHeight = el.style.height;
+  el.style.height = 'auto';
+  const h = el.scrollHeight;
+  el.style.height = prevHeight;
+  return h;
+}
+// Renders one blurred glow per line of text, positioned behind the text and
+// free to bloom past the card's own edges (no clipping). Each glow is a
+// wide, short horizontal band (not a circular point) so it reads as coming
+// from a line running through the text rather than a dot. Position is
+// computed from the text element's own natural size/position (it may be
+// vertically centered in a card that's been manually resized taller than
+// its content, via flex) rather than assumed to fill the whole card —
+// otherwise the glow drifts away from the actual text when a card is
+// stretched. Bigger and more intense the higher the glow level, and a bit
+// bigger still the wider/taller the card itself has been made.
+function renderGlowBlobs(container, textEl, level){
+  container.querySelectorAll(':scope > .glow-blob').forEach(b=>b.remove());
+  level = Math.max(1, Math.min(9, level));
+  const cs = getComputedStyle(textEl);
+  let lh = parseFloat(cs.lineHeight);
+  if(!Number.isFinite(lh) || lh<=0) lh = parseFloat(cs.fontSize)*1.3;
+  if(!lh) lh = 20;
+  // offsetTop/Left/Width/Height are relative to the SAME box (container,
+  // which is itself `position`-ed) that the blobs below are positioned
+  // within, and the browser has already done all the flex/padding/border
+  // centering math to produce them — tethering the glow to these directly,
+  // instead of re-deriving the text's position by hand (padding, flex
+  // centering, box-sizing...), is what keeps it locked to the actual text
+  // regardless of how the card gets resized. textEl itself never has an
+  // explicit height/width set, so these are already its natural size.
+  const textHeight = textEl.offsetHeight || lh;
+  const textWidth = textEl.offsetWidth || 60;
+  const textTop = textEl.offsetTop;
+  const textLeft = textEl.offsetLeft;
+  const lines = Math.max(1, Math.round(textHeight / lh));
+
+  // The glow grows as the card is made wider/taller than its text actually
+  // needs — continuous with the current box size, not just a binary
+  // "was this manually resized" switch. Field items only: list cards are
+  // uniformly wide by design (not something the user resizes), so this
+  // would otherwise inflate glow on every list item regardless of level.
+  const isField = container.classList.contains('field-item');
+  const containerWidth = container.offsetWidth || textWidth;
+  const containerHeight = container.offsetHeight || textHeight;
+  const widthScale = isField ? Math.max(1, Math.min(2.5, containerWidth/(textWidth+40))) : 1;
+  const heightScale = isField ? Math.max(1, Math.min(2.5, containerHeight/(textHeight+20))) : 1;
+
+  // Many overlapping lines (each glow line deliberately overlaps its
+  // neighbors to avoid a gap) otherwise stack up additively and wash the
+  // text out — dampen per-line intensity as line count grows to keep a
+  // sensible ceiling on total brightness.
+  const lineDamp = lines <= 1 ? 1 : Math.max(0.5, 1.7/lines);
+
+  const color = glowHsl(level);
+  // Thickness is tied to the actual line spacing (not an arbitrary fixed
+  // size) and deliberately bigger than one line-height, so neighboring
+  // lines' glows overlap instead of leaving a dim gap between them.
+  const growth = glowGrowth(level);
+  // Vertical size (thickness/vBleed) depends only on level/line-height, not
+  // text length — that's deliberately toned down here so higher levels
+  // don't get tall/round. Horizontal bleed gets an extra term proportional
+  // to the text's own width, so a longer line of text naturally gets a
+  // wider, more elongated glow instead of the same round blob regardless
+  // of how much text is actually there.
+  const thickness = lh*1.3 + growth*4.5;
+  const bleed = (14 + growth*7) * widthScale + textWidth*0.08;
+  const vBleed = (8 + growth*3.5) * heightScale;
+  const blur = 8 + growth*1.6;
+  const coreAlpha = ((0.36 + growth*0.06) * lineDamp).toFixed(2);
+  const midAlpha = (coreAlpha*0.5).toFixed(2);
+  // List rows are a fixed, uniform width (not something the user resizes
+  // like field cards), so it reads better for the glow to fill most of the
+  // row rather than hug just the words — field items keep hugging the text
+  // (that was the earlier fix for glow stretching oddly when a card is
+  // manually widened past its text).
+  const blobWidth = isField ? (textWidth + bleed*2) : Math.max(textWidth + bleed*2, containerWidth*0.85);
+  for(let i=0;i<lines;i++){
+    const blob = document.createElement('div');
+    blob.className = 'glow-blob';
+    const centerY = textTop + (i+0.5)*(textHeight/lines);
+    const centerX = textLeft + textWidth/2;
+    blob.style.top = (centerY - thickness/2 - vBleed).toFixed(1)+'px';
+    blob.style.left = (centerX - blobWidth/2).toFixed(1)+'px';
+    blob.style.width = blobWidth.toFixed(0)+'px';
+    blob.style.height = (thickness + vBleed*2).toFixed(1)+'px';
+    blob.style.filter = `blur(${blur.toFixed(1)}px)`;
+    blob.style.background = `radial-gradient(ellipse, ${withAlpha(color,coreAlpha)} 0%, ${withAlpha(color,midAlpha)} 45%, ${withAlpha(color,0)} 78%)`;
+    container.insertBefore(blob, container.firstChild);
+  }
+}
+
+/* ============================== STATE ============================== */
+let state = load() || seedState();
+let view = {
+  mode:'list',
+  previousMode:'list',
+  list:{scale:1,x:0,y:0},
+  field:{scale:1,x:0,y:0},
+};
+let undoStack = [], redoStack = [];
+let idCounter = 1;
+let selectedFieldItemId = null;
+
+function genId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id-'+Date.now()+'-'+(idCounter++);
+}
+
+function seedState(){
+  return {
+    items:[
+      {id:genId(), text:'Tap me to edit — spin the dial to glow', glow:2, x:70, y:220, width:230},
+      {id:genId(), text:'Hold, then drag to reorder the list', glow:4, x:220, y:300, width:230},
+      {id:genId(), text:'Map view (top) lets you place things freely', glow:6, x:90, y:420, width:230},
+      {id:genId(), text:'Add me again and watch what happens', glow:8, x:230, y:520, width:230},
+    ],
+    headings:[
+      {id:genId(), text:'Getting Started', x:80, y:150},
+    ],
+    settings:{sparkles:true, defaultView:'list', hasSeenIntro:false},
+  };
+}
+function sanitizeSettings(s){
+  return {
+    sparkles: s && typeof s.sparkles==='boolean' ? s.sparkles : true,
+    defaultView: s && s.defaultView==='field' ? 'field' : 'list',
+    hasSeenIntro: s && typeof s.hasSeenIntro==='boolean' ? s.hasSeenIntro : false,
+  };
+}
+
+function sanitizeItem(it){
+  return {
+    id: it && it.id ? String(it.id) : genId(),
+    text: it && typeof it.text==='string' ? it.text : '',
+    glow: it && Number.isFinite(it.glow) ? Math.max(1,Math.min(9,Math.round(it.glow))) : 1,
+    x: it && Number.isFinite(it.x) ? it.x : FIELD_MARGIN_X,
+    y: it && Number.isFinite(it.y) ? it.y : FIELD_INITIAL_Y,
+    width: it && Number.isFinite(it.width) ? Math.max(120,Math.min(900,Math.round(it.width))) : null,
+    height: it && Number.isFinite(it.height) ? Math.max(40,Math.min(640,Math.round(it.height))) : null,
+  };
+}
+function sanitizeHeading(h){
+  return {
+    id: h && h.id ? String(h.id) : genId(),
+    text: h && typeof h.text==='string' ? h.text : '',
+    x: h && Number.isFinite(h.x) ? h.x : FIELD_MARGIN_X,
+    y: h && Number.isFinite(h.y) ? h.y : FIELD_INITIAL_Y,
+  };
+}
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(!parsed || !Array.isArray(parsed.items)) return null;
+    return {
+      items: parsed.items.map(sanitizeItem),
+      headings: Array.isArray(parsed.headings) ? parsed.headings.map(sanitizeHeading) : [],
+      settings: sanitizeSettings(parsed.settings),
+    };
+  }catch(e){ return null; }
+}
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({items:state.items, headings:state.headings, settings:state.settings}));
+  }catch(e){ /* storage unavailable — app still works in-memory */ }
+}
+function snapshot(){ return JSON.parse(JSON.stringify({items:state.items, headings:state.headings, settings:state.settings})); }
+
+function commit(before){
+  undoStack.push(before);
+  if(undoStack.length>MAX_HISTORY) undoStack.shift();
+  redoStack = [];
+  save();
+  updateUndoRedoButtons();
+}
+function doUndo(){
+  if(!undoStack.length) return;
+  const cur = snapshot();
+  const prev = undoStack.pop();
+  redoStack.push(cur);
+  state.items = prev.items; state.headings = prev.headings; state.settings = prev.settings;
+  save(); renderAll(); updateUndoRedoButtons();
+}
+function doRedo(){
+  if(!redoStack.length) return;
+  const cur = snapshot();
+  const next = redoStack.pop();
+  undoStack.push(cur);
+  state.items = next.items; state.headings = next.headings; state.settings = next.settings;
+  save(); renderAll(); updateUndoRedoButtons();
+}
+function updateUndoRedoButtons(){
+  undoBtn.disabled = undoStack.length===0;
+  redoBtn.disabled = redoStack.length===0;
+}
+
+/* ============================== DOM refs ============================== */
+const app = document.getElementById('app');
+const stage = document.getElementById('stage');
+const menuBtn = document.getElementById('menuBtn');
+const undoBtn = document.getElementById('undoBtn');
+const redoBtn = document.getElementById('redoBtn');
+const resetZoomBtn = document.getElementById('resetZoomBtn');
+const listViewport = document.getElementById('listViewport');
+const listCanvas = document.getElementById('listCanvas');
+const sparkleLayer = document.getElementById('sparkleLayer');
+const fieldViewport = document.getElementById('fieldViewport');
+const fieldSparkleLayer = document.getElementById('fieldSparkleLayer');
+const fieldCanvas = document.getElementById('fieldCanvas');
+const tableView = document.getElementById('tableView');
+const tableBody = document.getElementById('tableBody');
+const closeTableBtn = document.getElementById('closeTableBtn');
+const tableAddRow = document.getElementById('tableAddRow');
+const addItemBtn = document.getElementById('addItemBtn');
+const addHeadingBtn = document.getElementById('addHeadingBtn');
+
+const editOverlay = document.getElementById('editOverlay');
+const editBackdrop = document.getElementById('editBackdrop');
+const editText = document.getElementById('editText');
+const dialRow = document.getElementById('dialRow');
+const glowDial = document.getElementById('glowDial');
+const dialNeedle = document.getElementById('dialNeedle');
+const dialCenter = document.getElementById('dialCenter');
+const dialValue = document.getElementById('dialValue');
+const dialMinus = document.getElementById('dialMinus');
+const dialPlus = document.getElementById('dialPlus');
+const editDelete = document.getElementById('editDelete');
+const editCancel = document.getElementById('editCancel');
+const editSave = document.getElementById('editSave');
+
+const settingsOverlay = document.getElementById('settingsOverlay');
+const settingsBackdrop = document.getElementById('settingsBackdrop');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const openTableBtn = document.getElementById('openTableBtn');
+const showIntroBtn = document.getElementById('showIntroBtn');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const importFile = document.getElementById('importFile');
+const sparkleToggle = document.getElementById('sparkleToggle');
+const defaultViewToggle = document.getElementById('defaultViewToggle');
+const aboutBtn = document.getElementById('aboutBtn');
+const resetAllBtn = document.getElementById('resetAllBtn');
+
+const ctxMenu = document.getElementById('ctxMenu');
+const ctxPaste = document.getElementById('ctxPaste');
+const pasteCatcher = document.getElementById('pasteCatcher');
+
+const confirmOverlay = document.getElementById('confirmOverlay');
+const confirmBackdrop = document.getElementById('confirmBackdrop');
+const confirmMessage = document.getElementById('confirmMessage');
+const confirmCancel = document.getElementById('confirmCancel');
+const confirmOk = document.getElementById('confirmOk');
+
+const toast = document.getElementById('toast');
+
+const introOverlay = document.getElementById('introOverlay');
+const introBackdrop = document.getElementById('introBackdrop');
+const introCloseBtn = document.getElementById('introCloseBtn');
+const introSlide1 = document.getElementById('introSlide1');
+const introSlide2 = document.getElementById('introSlide2');
+const introNextBtn = document.getElementById('introNextBtn');
+const introStartBtn = document.getElementById('introStartBtn');
+const introDot1 = document.getElementById('introDot1');
+const introDot2 = document.getElementById('introDot2');
+
+const aboutOverlay = document.getElementById('aboutOverlay');
+const aboutBackdrop = document.getElementById('aboutBackdrop');
+const aboutCloseBtn = document.getElementById('aboutCloseBtn');
+
+setIcon(menuBtn,'menu');
+setIcon(undoBtn,'undo');
+setIcon(redoBtn,'redo');
+setIcon(resetZoomBtn,'rect');
+setIcon(closeTableBtn,'close');
+editDelete.innerHTML = ICONS.trash;
+setIcon(closeSettingsBtn,'close');
+setIcon(introCloseBtn,'close');
+setIcon(aboutCloseBtn,'close');
+openTableBtn.innerHTML = ICONS.table+'<span>Table View</span>';
+showIntroBtn.innerHTML = ICONS.help+'<span>Show Intro</span>';
+exportBtn.innerHTML = ICONS.download+'<span>Export Data</span>';
+importBtn.innerHTML = ICONS.upload+'<span>Import Data</span>';
+aboutBtn.innerHTML = ICONS.info+'<span>About</span>';
+resetAllBtn.innerHTML = ICONS.trash+'<span>Reset All Data</span>';
+
+/* ============================== toast / confirm ============================== */
+let toastTimer=null;
+function showToast(msg, ms=2200){
+  toast.textContent = msg;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ toast.hidden = true; }, ms);
+}
+function confirmDialog(message){
+  return new Promise((resolve)=>{
+    confirmMessage.textContent = message;
+    confirmOverlay.hidden = false;
+    const cleanup = (result)=>{
+      confirmOverlay.hidden = true;
+      confirmOk.removeEventListener('click', onOk);
+      confirmCancel.removeEventListener('click', onCancel);
+      confirmBackdrop.removeEventListener('click', onCancel);
+      resolve(result);
+    };
+    const onOk = ()=>cleanup(true);
+    const onCancel = ()=>cleanup(false);
+    confirmOk.addEventListener('click', onOk);
+    confirmCancel.addEventListener('click', onCancel);
+    confirmBackdrop.addEventListener('click', onCancel);
+  });
+}
+
+/* ============================== downloads capability ============================== */
+let downloadsApi = null;
+(async function initCapabilities(){
+  try{
+    if(window.claude && window.claude.use){
+      downloadsApi = await window.claude.use('downloads');
+    }
+  }catch(e){ downloadsApi = null; }
+})();
+
+/* ============================== sparkles ============================== */
+function renderSparkles(){
+  [sparkleLayer, fieldSparkleLayer].forEach(layer=>{
+    layer.innerHTML = '';
+    if(!state.settings.sparkles) return;
+    const n = 26;
+    for(let i=0;i<n;i++){
+      const s = document.createElement('div');
+      s.className = 'sparkle';
+      s.style.left = (Math.random()*100)+'%';
+      s.style.top = (8+Math.random()*80)+'%';
+      s.style.animationDelay = (Math.random()*3.4).toFixed(2)+'s';
+      s.style.animationDuration = (2.6+Math.random()*2.4).toFixed(2)+'s';
+      layer.appendChild(s);
+    }
+  });
+}
+
+/* ============================== field default position ============================== */
+function getDefaultFieldPosition(extra){
+  const pool = state.items.concat(state.headings).concat(extra||[]);
+  const leftCol = pool.filter(r => Math.abs(r.x - FIELD_MARGIN_X) < 70);
+  if(!leftCol.length) return {x:FIELD_MARGIN_X, y:FIELD_INITIAL_Y};
+  const maxY = Math.max.apply(null, leftCol.map(r=>r.y));
+  return {x:FIELD_MARGIN_X, y:maxY + FIELD_STACK_GAP};
+}
+
+/* ============================== render: list ============================== */
+function renderList(){
+  listCanvas.innerHTML = '';
+  state.items.forEach(item=>{
+    const el = document.createElement('div');
+    el.className = 'list-item';
+    el.dataset.id = item.id;
+    const txt = document.createElement('div');
+    txt.className = 'glow-text';
+    txt.textContent = item.text;
+    applyGlow(txt, item.glow);
+    el.appendChild(txt);
+    listCanvas.appendChild(el);
+    renderGlowBlobs(el, txt, item.glow);
+    el.addEventListener('click', ()=>{
+      if(listJustDragged) return;
+      openEdit(item.id, 'text');
+    });
+  });
+  applyListTransform();
+}
+
+function cssEscape(s){ return String(s).replace(/["\\]/g,'\\$&'); }
+
+/* ============================== render: field ============================== */
+function renderField(){
+  fieldCanvas.innerHTML = '';
+  state.headings.forEach(h=>{
+    const el = document.createElement('div');
+    el.className = 'field-item heading-item';
+    el.dataset.id = h.id;
+    el.dataset.type = 'heading';
+    el.textContent = h.text;
+    positionFieldEl(el, h);
+    fieldCanvas.appendChild(el);
+    makeFieldItemDraggable(el, h, 'heading');
+  });
+  state.items.forEach(item=>{
+    const el = document.createElement('div');
+    el.className = 'field-item';
+    el.dataset.id = item.id;
+    el.dataset.type = 'text';
+    const txt = document.createElement('span');
+    txt.className = 'field-text';
+    txt.textContent = item.text;
+    el.appendChild(txt);
+    if(item.width){ el.style.width = item.width+'px'; el.style.maxWidth = 'none'; }
+    if(item.height){ el.style.height = item.height+'px'; }
+    if(item.id===selectedFieldItemId) el.classList.add('selected');
+    applyGlow(el, item.glow);
+    positionFieldEl(el, item);
+    fieldCanvas.appendChild(el);
+    renderGlowBlobs(el, txt, item.glow);
+    makeFieldItemDraggable(el, item, 'text');
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'field-resize';
+    el.appendChild(resizeHandle);
+    makeFieldItemResizable(el, resizeHandle, item, 'width');
+    const resizeHandleBottom = document.createElement('div');
+    resizeHandleBottom.className = 'field-resize-bottom';
+    el.appendChild(resizeHandleBottom);
+    makeFieldItemResizable(el, resizeHandleBottom, item, 'height');
+  });
+  applyFieldTransform();
+}
+function positionFieldEl(el, rec){
+  el.style.left = rec.x+'px';
+  el.style.top = rec.y+'px';
+}
+
+// Selects a field item to reveal its resize handles, without a full
+// re-render (a full renderField() would tear down and recreate every
+// element, resetting the per-element double-tap timers used for
+// double-tap-to-edit).
+function selectFieldItem(id){
+  if(selectedFieldItemId===id) return;
+  const prev = selectedFieldItemId;
+  selectedFieldItemId = id;
+  if(prev){
+    const prevEl = fieldCanvas.querySelector(`[data-id="${cssEscape(prev)}"]`);
+    if(prevEl) prevEl.classList.remove('selected');
+  }
+  if(id){
+    const curEl = fieldCanvas.querySelector(`[data-id="${cssEscape(id)}"]`);
+    if(curEl) curEl.classList.add('selected');
+  }
+}
+
+function makeFieldItemDraggable(el, rec, type){
+  let downX=0, downY=0, dragging=false, beforeSnap=null, pid=null, startX=0, startY=0, lastTap=0;
+
+  el.addEventListener('pointerdown', (e)=>{
+    if(e.button!==undefined && e.button!==0) return;
+    e.stopPropagation();
+    pid = e.pointerId;
+    downX=e.clientX; downY=e.clientY; dragging=false; beforeSnap=null;
+    startX=rec.x; startY=rec.y;
+    try{ el.setPointerCapture(pid); }catch(err){}
+
+    function move(ev){
+      const scale = view.field.scale;
+      const dx = (ev.clientX-downX)/scale, dy = (ev.clientY-downY)/scale;
+      if(!dragging && Math.hypot(ev.clientX-downX, ev.clientY-downY) > 5){
+        dragging = true;
+        beforeSnap = snapshot();
+        el.classList.add('dragging');
+      }
+      if(dragging){
+        rec.x = startX+dx; rec.y = startY+dy;
+        positionFieldEl(el, rec);
+      }
+    }
+    function up(ev){
+      try{ el.releasePointerCapture(pid); }catch(err){}
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if(dragging){
+        el.classList.remove('dragging');
+        if(beforeSnap) commit(beforeSnap);
+        save();
+      }else{
+        const now = Date.now();
+        if(now-lastTap < 380){ lastTap=0; openEdit(rec.id, type); }
+        else{
+          lastTap = now;
+          if(type==='text'){
+            // Only reveal the resize handles when the tap lands near an
+            // edge; a tap in the middle deselects instead.
+            const EDGE_ZONE = 24;
+            const r = el.getBoundingClientRect();
+            const edgeDist = Math.min(ev.clientX-r.left, r.right-ev.clientX, ev.clientY-r.top, r.bottom-ev.clientY);
+            selectFieldItem(edgeDist <= EDGE_ZONE ? rec.id : null);
+          }
+        }
+      }
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
+  el.addEventListener('dblclick', (e)=>{ e.stopPropagation(); openEdit(rec.id, type); });
+}
+
+function makeFieldItemResizable(el, handleEl, rec, axis){
+  handleEl.addEventListener('pointerdown', (e)=>{
+    if(e.button!==undefined && e.button!==0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const pid = e.pointerId;
+    const startX = e.clientX, startY = e.clientY;
+    const beforeSnap = snapshot();
+    let startWidth, startHeight, naturalMinHeight;
+    if(axis==='width'){
+      startWidth = rec.width || el.getBoundingClientRect().width / view.field.scale;
+    }else{
+      startHeight = rec.height || el.getBoundingClientRect().height / view.field.scale;
+      // Measure the text's own natural height rather than the container's —
+      // the container's scrollHeight can pick up the glow blobs, which
+      // deliberately overflow past the text (that's the bleed effect), and
+      // that was inflating the computed minimum so shrinking felt like it
+      // hit a floor almost immediately.
+      const txtElForMin = el.querySelector('.field-text');
+      const textNaturalH = txtElForMin ? measureNaturalHeight(txtElForMin) : measureNaturalHeight(el);
+      const ccs = getComputedStyle(el);
+      const padV = (parseFloat(ccs.paddingTop)||0) + (parseFloat(ccs.paddingBottom)||0);
+      const borderV = (parseFloat(ccs.borderTopWidth)||0) + (parseFloat(ccs.borderBottomWidth)||0);
+      naturalMinHeight = textNaturalH + padV + borderV;
+    }
+    try{ handleEl.setPointerCapture(pid); }catch(err){}
+
+    // el is centered on (x,y) via translate(-50%,-50%), so growing the
+    // dragged edge by d grows the total dimension by 2*d to keep that
+    // edge tracking the pointer.
+    function move(ev){
+      if(axis==='width'){
+        const dx = (ev.clientX-startX) / view.field.scale;
+        const w = Math.max(120, Math.min(900, Math.round(startWidth + dx*2)));
+        rec.width = w;
+        el.style.width = w+'px';
+        el.style.maxWidth = 'none';
+      }else{
+        const dy = (ev.clientY-startY) / view.field.scale;
+        const minH = Math.max(40, naturalMinHeight);
+        const h = Math.max(minH, Math.min(640, Math.round(startHeight + dy*2)));
+        rec.height = h;
+        el.style.height = h+'px';
+      }
+      // Glow position/size depends on the box's current dimensions, so it
+      // needs to keep pace with the resize live, not just catch up on the
+      // next full re-render.
+      const txtEl = el.querySelector('.field-text');
+      if(txtEl) renderGlowBlobs(el, txtEl, rec.glow);
+    }
+    function up(){
+      try{ handleEl.releasePointerCapture(pid); }catch(err){}
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      commit(beforeSnap);
+      save();
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
+}
+
+/* ============================== view transforms & gestures ============================== */
+function applyListTransform(){
+  const t = view.list;
+  listCanvas.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.scale})`;
+}
+function applyFieldTransform(){
+  const t = view.field;
+  fieldCanvas.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.scale})`;
+}
+function resetView(mode){
+  const t = view[mode];
+  t.scale = 1; t.x = 0; t.y = 0;
+  listCanvas.style.transition = fieldCanvas.style.transition = 'transform .25s ease-out';
+  (mode==='list'?applyListTransform:applyFieldTransform)();
+  setTimeout(()=>{ listCanvas.style.transition = fieldCanvas.style.transition = ''; }, 260);
+}
+
+function fitFieldView(){
+  const pool = [];
+  state.items.forEach(it=>pool.push({x:it.x, y:it.y, w:it.width||280, h:it.height||60}));
+  state.headings.forEach(h=>pool.push({x:h.x, y:h.y, w:220, h:40}));
+  if(!pool.length){ resetView('field'); return; }
+
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  pool.forEach(r=>{
+    minX = Math.min(minX, r.x - r.w/2);
+    maxX = Math.max(maxX, r.x + r.w/2);
+    minY = Math.min(minY, r.y - r.h/2);
+    maxY = Math.max(maxY, r.y + r.h/2);
+  });
+
+  const rect = fieldViewport.getBoundingClientRect();
+  const PAD = 50;
+  const availW = Math.max(1, rect.width - PAD*2);
+  const availH = Math.max(1, rect.height - PAD*2);
+  const contentW = Math.max(1, maxX - minX);
+  const contentH = Math.max(1, maxY - minY);
+  let scale = Math.min(availW/contentW, availH/contentH);
+  if(!Number.isFinite(scale) || scale<=0) scale = 1;
+  // On a narrow (phone-shaped) viewport, fitting every item in fully tends
+  // to zoom out further than is comfortable to read — bias toward a more
+  // readable zoom level there, even if that pushes some content just off
+  // the edge (still reachable by panning).
+  if(rect.width < 500) scale *= 1.35;
+  scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+
+  const centerX = (minX+maxX)/2, centerY = (minY+maxY)/2;
+  const t = view.field;
+  t.scale = scale;
+  t.x = rect.width/2 - centerX*scale;
+  t.y = rect.height/2 - centerY*scale;
+
+  listCanvas.style.transition = fieldCanvas.style.transition = 'transform .25s ease-out';
+  applyFieldTransform();
+  setTimeout(()=>{ listCanvas.style.transition = fieldCanvas.style.transition = ''; }, 260);
+}
+
+// Resets list view to a sensible starting position: scrolled to the top,
+// and — only when there are few enough items that it's reasonable to show
+// them all at once — scaled down just enough that every current item fits
+// on screen. With many items, it's fine for later ones to be off-screen;
+// this just guarantees the view never starts scrolled somewhere with
+// nothing visible at all.
+function fitListView(){
+  const t = view.list;
+  t.x = 0; t.scale = 1; t.y = 0;
+  applyListTransform();
+  if(!state.items.length) return;
+  const items = listCanvas.querySelectorAll('.list-item');
+  if(!items.length) return;
+  const vr = listViewport.getBoundingClientRect();
+  const firstR = items[0].getBoundingClientRect();
+  const lastR = items[items.length-1].getBoundingClientRect();
+  const neededHeight = lastR.bottom - firstR.top;
+  const availableHeight = Math.max(100, vr.height - 40);
+  let scale = 1;
+  if(state.items.length <= 6 && neededHeight > availableHeight){
+    scale = Math.max(MIN_SCALE, Math.min(1, availableHeight/neededHeight));
+  }
+  t.scale = scale;
+  t.y = 20;
+  listCanvas.style.transition = fieldCanvas.style.transition = 'transform .2s ease-out';
+  applyListTransform();
+  setTimeout(()=>{ listCanvas.style.transition = fieldCanvas.style.transition = ''; }, 210);
+}
+
+function attachViewportGestures(viewportEl, canvasEl, key, applyFn){
+  const pointers = new Map();
+  let mode = null; // 'pan' | 'pinch'
+  let lastPoint = null;
+  let prevMid = null, prevDist = null;
+  let longPressTimer = null;
+  let downPoint = null;
+
+  function midpoint(){
+    const pts = Array.from(pointers.values());
+    return {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
+  }
+  function dist(){
+    const pts = Array.from(pointers.values());
+    return Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+  }
+
+  viewportEl.addEventListener('pointerdown', (e)=>{
+    if(e.target.closest('.list-item, .field-item')) return;
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    try{ viewportEl.setPointerCapture(e.pointerId); }catch(err){}
+    if(pointers.size===1){
+      mode='pan';
+      lastPoint = {x:e.clientX, y:e.clientY};
+      downPoint = {x:e.clientX, y:e.clientY};
+      viewportEl.classList.add('panning');
+      clearTimeout(longPressTimer);
+      longPressTimer = setTimeout(()=>{
+        showCtxMenu(e.clientX, e.clientY);
+      }, 520);
+    }else if(pointers.size===2){
+      clearTimeout(longPressTimer);
+      hideCtxMenu();
+      mode='pinch';
+      prevMid = midpoint();
+      prevDist = dist();
+    }
+  });
+
+  viewportEl.addEventListener('pointermove', (e)=>{
+    if(!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    const t = view[key];
+    if(mode==='pan' && pointers.size===1){
+      if(downPoint && Math.hypot(e.clientX-downPoint.x, e.clientY-downPoint.y) > 8) clearTimeout(longPressTimer);
+      const dx = e.clientX-lastPoint.x, dy = e.clientY-lastPoint.y;
+      t.x += dx; t.y += dy;
+      lastPoint = {x:e.clientX, y:e.clientY};
+      applyFn();
+    }else if(mode==='pinch' && pointers.size===2){
+      const mid = midpoint(), d = dist();
+      const scaleFactor = d/prevDist;
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, t.scale*scaleFactor));
+      const contentX = (prevMid.x - t.x)/t.scale;
+      const contentY = (prevMid.y - t.y)/t.scale;
+      t.x = mid.x - contentX*newScale;
+      t.y = mid.y - contentY*newScale;
+      t.scale = newScale;
+      prevMid = mid; prevDist = d;
+      applyFn();
+    }
+  });
+
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    clearTimeout(longPressTimer);
+    if(pointers.size===0){
+      mode=null; viewportEl.classList.remove('panning');
+      if(key==='field' && downPoint && !e.target.closest('.field-item') && Math.hypot(e.clientX-downPoint.x, e.clientY-downPoint.y) < 6){
+        selectFieldItem(null);
+      }
+    }else if(pointers.size===1){
+      mode='pan';
+      const p = Array.from(pointers.values())[0];
+      lastPoint = {x:p.x, y:p.y};
+    }
+  }
+  viewportEl.addEventListener('pointerup', endPointer);
+  viewportEl.addEventListener('pointercancel', endPointer);
+
+  viewportEl.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const t = view[key];
+    const rect = viewportEl.getBoundingClientRect();
+    const px = e.clientX-rect.left, py = e.clientY-rect.top;
+    if(e.ctrlKey){
+      const factor = Math.exp(-e.deltaY*0.012);
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, t.scale*factor));
+      const contentX = (px - t.x)/t.scale, contentY = (py - t.y)/t.scale;
+      t.x = px - contentX*newScale; t.y = py - contentY*newScale; t.scale = newScale;
+    }else{
+      t.x -= e.deltaX; t.y -= e.deltaY;
+    }
+    applyFn();
+  }, {passive:false});
+}
+
+/* ============================== context menu (paste) ============================== */
+function showCtxMenu(x,y){
+  const rect = stage.getBoundingClientRect();
+  ctxMenu.style.left = Math.min(x-rect.left, rect.width-140)+'px';
+  ctxMenu.style.top = Math.min(y-rect.top, rect.height-60)+'px';
+  ctxMenu.hidden = false;
+  ctxMenu.dataset.x = (x-rect.left);
+  ctxMenu.dataset.y = (y-rect.top);
+}
+function hideCtxMenu(){ ctxMenu.hidden = true; }
+document.addEventListener('pointerdown', (e)=>{
+  if(!ctxMenu.hidden && !ctxMenu.contains(e.target)) hideCtxMenu();
+});
+ctxPaste.addEventListener('click', async ()=>{
+  hideCtxMenu();
+  try{
+    const text = await navigator.clipboard.readText();
+    if(text && text.trim()){ importTextBlock(text); return; }
+  }catch(err){ /* fall through to native paste fallback */ }
+  pasteCatcher.value = '';
+  pasteCatcher.style.position='fixed';
+  pasteCatcher.style.left='-9999px';
+  pasteCatcher.hidden = false;
+  pasteCatcher.focus();
+  showToast('Browser blocked clipboard access — press ⌘V / Ctrl+V now');
+});
+pasteCatcher.addEventListener('paste', (e)=>{
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  setTimeout(()=>{ pasteCatcher.hidden = true; pasteCatcher.blur(); }, 0);
+  if(text && text.trim()) importTextBlock(text);
+});
+document.addEventListener('paste', (e)=>{
+  if(!editOverlay.hidden) return; // let normal editing paste happen inside the textarea
+  if(document.activeElement===pasteCatcher) return;
+  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData||window.clipboardData).getData('text') : '';
+  if(text && text.trim()) importTextBlock(text);
+});
+
+function importTextBlock(text){
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length) return;
+  const before = snapshot();
+  const newRecs = [];
+  let addedCount=0, mergedCount=0;
+  lines.forEach(line=>{
+    const dup = state.items.find(it=>it.text.trim().toLowerCase()===line.toLowerCase())
+             || newRecs.find(it=>it.text.trim().toLowerCase()===line.toLowerCase());
+    if(dup){ dup.glow = Math.min(9, dup.glow+1); mergedCount++; }
+    else{
+      const pos = getDefaultFieldPosition(newRecs);
+      newRecs.push({id:genId(), text:line, glow:1, x:pos.x, y:pos.y});
+      addedCount++;
+    }
+  });
+  state.items = newRecs.concat(state.items);
+  commit(before);
+  renderAll();
+  const parts = [];
+  if(addedCount) parts.push(`added ${addedCount}`);
+  if(mergedCount) parts.push(`powered up ${mergedCount}`);
+  showToast(parts.length ? parts.join(', ') : 'Nothing to add');
+}
+
+/* ============================== edit sheet ============================== */
+let currentEdit = null; // {id, type}
+let tempGlow = 1;
+let editOriginalWasEmpty = false;
+
+function findRecord(id, type){
+  return (type==='heading' ? state.headings : state.items).find(r=>r.id===id);
+}
+function openEdit(id, type){
+  const rec = findRecord(id, type);
+  if(!rec) return;
+  currentEdit = {id, type};
+  editOriginalWasEmpty = rec.text.trim()==='';
+  editText.value = rec.text;
+  dialRow.style.display = type==='text' ? 'flex' : 'none';
+  if(type==='text'){
+    tempGlow = rec.glow;
+    updateDial(tempGlow);
+    applyGlow(editText, tempGlow);
+    editText.style.background = 'var(--bg-deep)';
+  }else{
+    editText.style.color = '#eaf0ff';
+    editText.style.textShadow = '0 0 10px #6f7dff88';
+  }
+  editOverlay.hidden = false;
+  setTimeout(()=>{ editText.focus(); editText.select(); }, 30);
+}
+function closeEdit(){
+  editOverlay.hidden = true;
+  currentEdit = null;
+}
+function updateDial(v){
+  v = Math.max(1, Math.min(9, v));
+  tempGlow = v;
+  dialValue.textContent = v;
+  const angle = -120 + (v-1)*30;
+  dialNeedle.style.transform = `translate(-50%,-100%) rotate(${angle}deg)`;
+  const g = glowStyle(v);
+  dialNeedle.style.color = g.color;
+  dialCenter.style.color = g.color;
+  dialValue.style.color = g.color;
+  dialValue.style.textShadow = `0 0 8px ${g.color}`;
+  applyGlow(editText, v);
+}
+function angleFromDialEvent(e){
+  const rect = glowDial.getBoundingClientRect();
+  const cx = rect.left+rect.width/2, cy = rect.top+rect.height/2;
+  const a = Math.atan2(e.clientY-cy, e.clientX-cx) * 180/Math.PI;
+  let needleAngle = a + 90;
+  if(needleAngle > 180) needleAngle -= 360;
+  needleAngle = Math.max(-120, Math.min(120, needleAngle));
+  return 1 + Math.round((needleAngle+120)/30);
+}
+glowDial.addEventListener('pointerdown', (e)=>{
+  e.preventDefault();
+  try{ glowDial.setPointerCapture(e.pointerId); }catch(err){}
+  updateDial(angleFromDialEvent(e));
+  function move(ev){ updateDial(angleFromDialEvent(ev)); }
+  function up(ev){
+    glowDial.removeEventListener('pointermove', move);
+    glowDial.removeEventListener('pointerup', up);
+    glowDial.removeEventListener('pointercancel', up);
+  }
+  glowDial.addEventListener('pointermove', move);
+  glowDial.addEventListener('pointerup', up);
+  glowDial.addEventListener('pointercancel', up);
+});
+dialMinus.addEventListener('click', ()=>updateDial(tempGlow-1));
+dialPlus.addEventListener('click', ()=>updateDial(tempGlow+1));
+
+editText.addEventListener('keydown', (e)=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); doSave(); }
+  else if(e.key==='Escape'){ e.preventDefault(); doCancel(); }
+});
+editBackdrop.addEventListener('click', doCancel);
+editCancel.addEventListener('click', doCancel);
+editSave.addEventListener('click', doSave);
+editDelete.addEventListener('click', doDelete);
+
+function doCancel(){
+  if(!currentEdit) return;
+  const empty = editText.value.trim()==='';
+  if(empty && editOriginalWasEmpty){
+    const before = snapshot();
+    removeRecord(currentEdit.id, currentEdit.type);
+    commit(before); renderAll();
+  }
+  closeEdit();
+}
+function doDelete(){
+  if(!currentEdit) return;
+  const before = snapshot();
+  removeRecord(currentEdit.id, currentEdit.type);
+  commit(before);
+  closeEdit();
+  renderAll();
+}
+function removeRecord(id, type){
+  if(type==='heading') state.headings = state.headings.filter(h=>h.id!==id);
+  else state.items = state.items.filter(it=>it.id!==id);
+}
+
+function doSave(){
+  if(!currentEdit) return;
+  const text = editText.value.trim();
+  if(text===''){ doDelete(); return; }
+  const {id, type} = currentEdit;
+  const before = snapshot();
+
+  if(type==='heading'){
+    const rec = findRecord(id,'heading');
+    if(rec) rec.text = text;
+    commit(before); closeEdit(); renderAll();
+    return;
+  }
+
+  const dup = state.items.find(it=>it.id!==id && it.text.trim().toLowerCase()===text.toLowerCase());
+  if(dup){
+    removeRecord(id,'text');
+    dup.glow = Math.min(9, dup.glow+1);
+    commit(before);
+    closeEdit();
+    renderAll();
+    pulseAndCenter(dup.id, 'text');
+    return;
+  }
+
+  const rec = findRecord(id,'text');
+  if(rec){ rec.text = text; rec.glow = tempGlow; }
+  commit(before);
+  closeEdit();
+  renderAll();
+}
+
+function pulseAndCenter(id, type){
+  requestAnimationFrame(()=>{
+    const selector = `[data-id="${cssEscape(id)}"]`;
+    let el = null, vp = null, key = null;
+    if(view.mode==='list' && type==='text'){ el = listCanvas.querySelector(selector); vp = listViewport; key='list'; }
+    else if(view.mode==='field'){ el = fieldCanvas.querySelector(selector); vp = fieldViewport; key='field'; }
+    if(el){
+      el.classList.add('glow-pulse');
+      setTimeout(()=>el.classList.remove('glow-pulse'), 850);
+    }
+    if(el && vp && key){
+      const er = el.getBoundingClientRect(), vr = vp.getBoundingClientRect();
+      const dx = (vr.left+vr.width/2) - (er.left+er.width/2);
+      const dy = (vr.top+vr.height/2) - (er.top+er.height/2);
+      const t = view[key];
+      listCanvas.style.transition = fieldCanvas.style.transition = 'transform .35s ease-out';
+      t.x += dx; t.y += dy;
+      (key==='list'?applyListTransform:applyFieldTransform)();
+      setTimeout(()=>{ listCanvas.style.transition = fieldCanvas.style.transition=''; }, 380);
+    }else{
+      showToast('Powered up an existing item ✨');
+    }
+  });
+}
+
+/* ============================== add item / heading ============================== */
+addItemBtn.addEventListener('click', ()=>{
+  const before = snapshot();
+  let rec;
+  if(view.mode==='field'){
+    const rect = fieldViewport.getBoundingClientRect();
+    const t = view.field;
+    const cx = (rect.width/2 - t.x)/t.scale, cy = (rect.height/2 - t.y)/t.scale;
+    rec = {id:genId(), text:'', glow:1, x:cx, y:cy};
+  }else{
+    const pos = getDefaultFieldPosition();
+    rec = {id:genId(), text:'', glow:1, x:pos.x, y:pos.y};
+  }
+  state.items.push(rec);
+  commit(before);
+  renderAll();
+  if(view.mode==='list'){
+    // Pan up by exactly however much the new item overflows past the
+    // bottom of the viewport (if any) — a blind fixed-size pan overshoots
+    // on a tall desktop window where the list may already fit on screen.
+    const freshEl = listCanvas.querySelector(`[data-id="${cssEscape(rec.id)}"]`);
+    if(freshEl){
+      const er = freshEl.getBoundingClientRect();
+      const vr = listViewport.getBoundingClientRect();
+      const margin = 20;
+      const overflow = er.bottom - (vr.bottom - margin);
+      if(overflow > 0){
+        const t = view.list;
+        listCanvas.style.transition='transform .2s ease-out';
+        t.y -= overflow; applyListTransform();
+        setTimeout(()=>{ listCanvas.style.transition=''; },210);
+      }
+    }
+  }
+  openEdit(rec.id, 'text');
+});
+addHeadingBtn.addEventListener('click', ()=>{
+  const before = snapshot();
+  const rect = fieldViewport.getBoundingClientRect();
+  const t = view.field;
+  const cx = (rect.width/2 - t.x)/t.scale, cy = (rect.height/2 - t.y)/t.scale;
+  const rec = {id:genId(), text:'', x:cx, y:cy};
+  state.headings.push(rec);
+  commit(before);
+  renderAll();
+  openEdit(rec.id, 'heading');
+});
+
+/* ============================== view toggle ============================== */
+// Scoped to [data-view] specifically: the settings drawer's "Opens on"
+// buttons reuse the .view-toggle-btn class for styling but use
+// data-default-view instead, and an unscoped query here used to also catch
+// those, read their (nonexistent) data-view as undefined, and call
+// setViewMode(undefined) — which hid BOTH viewports at once (a black
+// screen), since undefined matches neither 'list' nor 'field'.
+document.querySelectorAll('.view-toggle-btn[data-view]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const v = btn.dataset.view;
+    if(view.mode===v) return;
+    setViewMode(v);
+  });
+});
+// True if at least one direct child of containerEl overlaps viewportEl's
+// visible area — used to decide whether a view needs rescuing (nothing on
+// screen) rather than always re-fitting on every switch, which would
+// otherwise reset a pan/zoom position the user deliberately set.
+function anyChildVisible(containerEl, viewportEl){
+  const vr = viewportEl.getBoundingClientRect();
+  const children = containerEl.children;
+  for(let i=0;i<children.length;i++){
+    const r = children[i].getBoundingClientRect();
+    if(r.right>vr.left && r.left<vr.right && r.bottom>vr.top && r.top<vr.bottom) return true;
+  }
+  return false;
+}
+
+function setViewMode(v, forceFit){
+  // Defensive fallback: an invalid value must never hide both viewports.
+  if(v!=='list' && v!=='field') v = 'list';
+  view.mode = v;
+  document.querySelectorAll('.view-toggle-btn[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  listViewport.hidden = v!=='list';
+  fieldViewport.hidden = v!=='field';
+  addHeadingBtn.hidden = v!=='field';
+  // Re-render the view being shown: iOS Safari sometimes fails to repaint a
+  // transformed layer that was just un-hidden (display:none -> block), and a
+  // fresh render also picks up accurate line-count halo measurements that
+  // can't be taken while the view was hidden. Beyond the initial page load
+  // (forceFit — view.list/view.field always start fresh at scale 1/(0,0) on
+  // every load anyway, so there's no user pan/zoom to preserve there), only
+  // rescue the pan/zoom if nothing is actually visible after switching (e.g.
+  // panned far away, or the very first item was just added off-screen) —
+  // otherwise leave it exactly where the user left it.
+  if(v==='list'){
+    renderList();
+    if(forceFit || !anyChildVisible(listCanvas, listViewport)) fitListView();
+  }else{
+    // Always fit map view on switch (not conditional like list): the
+    // "Getting Started" heading sits near the origin and is almost always
+    // trivially visible on its own, which was masking the real items
+    // sitting off in a corner and defeating the visibility check.
+    renderField();
+    fitFieldView();
+  }
+}
+resetZoomBtn.addEventListener('click', ()=>{
+  if(view.mode==='field') fitFieldView();
+  else resetView(view.mode);
+});
+
+/* ============================== settings drawer ============================== */
+menuBtn.addEventListener('click', ()=>{ settingsOverlay.hidden=false; });
+function closeSettings(){ settingsOverlay.hidden = true; }
+closeSettingsBtn.addEventListener('click', closeSettings);
+settingsBackdrop.addEventListener('click', closeSettings);
+
+/* ============================== intro / onboarding ============================== */
+function showIntroSlide(n){
+  introSlide1.hidden = n!==1;
+  introSlide2.hidden = n!==2;
+  introDot1.classList.toggle('active', n===1);
+  introDot2.classList.toggle('active', n===2);
+}
+function openIntro(){
+  showIntroSlide(1);
+  introOverlay.hidden = false;
+}
+function closeIntro(){
+  introOverlay.hidden = true;
+  if(!state.settings.hasSeenIntro){
+    state.settings.hasSeenIntro = true;
+    save();
+  }
+}
+introCloseBtn.addEventListener('click', closeIntro);
+introBackdrop.addEventListener('click', closeIntro);
+introNextBtn.addEventListener('click', ()=>showIntroSlide(2));
+introStartBtn.addEventListener('click', ()=>{
+  closeIntro();
+  closeSettings();
+  addItemBtn.click();
+});
+showIntroBtn.addEventListener('click', ()=>{
+  closeSettings();
+  openIntro();
+});
+
+function openAbout(){ aboutOverlay.hidden = false; }
+function closeAbout(){ aboutOverlay.hidden = true; }
+aboutCloseBtn.addEventListener('click', closeAbout);
+aboutBackdrop.addEventListener('click', closeAbout);
+aboutBtn.addEventListener('click', ()=>{
+  closeSettings();
+  openAbout();
+});
+
+sparkleToggle.addEventListener('change', ()=>{
+  const before = snapshot();
+  state.settings.sparkles = sparkleToggle.checked;
+  commit(before);
+  renderSparkles();
+});
+
+function syncDefaultViewToggle(){
+  defaultViewToggle.querySelectorAll('.view-toggle-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.defaultView===state.settings.defaultView);
+  });
+}
+defaultViewToggle.querySelectorAll('.view-toggle-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const v = btn.dataset.defaultView;
+    if(state.settings.defaultView===v) return;
+    const before = snapshot();
+    state.settings.defaultView = v;
+    commit(before);
+    syncDefaultViewToggle();
+  });
+});
+
+openTableBtn.addEventListener('click', ()=>{
+  view.previousMode = view.mode;
+  renderTable();
+  tableView.hidden = false;
+  closeSettings();
+});
+closeTableBtn.addEventListener('click', ()=>{ tableView.hidden = true; });
+
+resetAllBtn.addEventListener('click', async ()=>{
+  const ok = await confirmDialog('Reset all items and headings? This clears everything.');
+  if(!ok) return;
+  const before = snapshot();
+  state.items = []; state.headings = [];
+  commit(before);
+  renderAll();
+  closeSettings();
+  showToast('All data cleared');
+});
+
+exportBtn.addEventListener('click', async ()=>{
+  const payload = JSON.stringify({version:1, items:state.items, headings:state.headings, settings:state.settings}, null, 2);
+  // Claude's own downloads capability, when available (inside a Claude
+  // Artifact) — falls through to a plain browser download otherwise, so
+  // export still works when this is hosted as a standalone page anywhere
+  // else (e.g. GitHub Pages), where window.claude doesn't exist.
+  if(downloadsApi){
+    try{
+      const res = await downloadsApi.save({filename:'glowlist-export.json', data: payload});
+      showToast(res.status==='saved' ? 'Exported!' : 'Sent to your destination');
+      return;
+    }catch(err){
+      if(err && err.code==='declined') return;
+      // fall through to the standard download below
+    }
+  }
+  try{
+    const blob = new Blob([payload], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'glowlist-export.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    showToast('Exported!');
+  }catch(err){
+    showToast('Export failed');
+  }
+});
+
+importBtn.addEventListener('click', ()=>{ importFile.click(); });
+importFile.addEventListener('change', async ()=>{
+  const file = importFile.files && importFile.files[0];
+  importFile.value = '';
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if(!parsed || !Array.isArray(parsed.items)) throw new Error('bad shape');
+    const ok = await confirmDialog('Import this file? It will replace all current items and headings.');
+    if(!ok) return;
+    const before = snapshot();
+    state.items = parsed.items.map(sanitizeItem);
+    state.headings = Array.isArray(parsed.headings) ? parsed.headings.map(sanitizeHeading) : [];
+    if(parsed.settings) state.settings = sanitizeSettings(parsed.settings);
+    commit(before);
+    renderAll();
+    if(view.mode==='list') fitListView(); else fitFieldView();
+    closeSettings();
+    showToast('Imported!');
+  }catch(err){
+    showToast('Import failed: '+(err && err.message ? err.message : 'could not read that file'), 4500);
+  }
+});
+
+/* ============================== table view ============================== */
+function renderTable(){
+  tableBody.innerHTML = '';
+  state.items.forEach(item=>{
+    const tr = document.createElement('tr');
+
+    const tdText = document.createElement('td');
+    const inpText = document.createElement('input');
+    inpText.type = 'text';
+    inpText.value = item.text;
+    inpText.id = 'tbl-text-'+item.id;
+    inpText.addEventListener('change', ()=>{
+      const v = inpText.value.trim();
+      if(!v){ inpText.value = item.text; return; }
+      const dup = state.items.find(it=>it.id!==item.id && it.text.trim().toLowerCase()===v.toLowerCase());
+      if(dup){
+        const before = snapshot();
+        state.items = state.items.filter(it=>it.id!==item.id);
+        dup.glow = Math.min(9, dup.glow+1);
+        commit(before);
+        renderAll();
+        showToast('Powered up an existing item ✨');
+        return;
+      }
+      const before = snapshot();
+      item.text = v;
+      commit(before);
+      applyGlow(inpText, item.glow);
+      renderListAndFieldOnly();
+    });
+    applyGlow(inpText, item.glow);
+    tdText.appendChild(inpText);
+
+    const tdGlow = document.createElement('td');
+    const inpGlow = document.createElement('input');
+    inpGlow.type = 'number'; inpGlow.min='1'; inpGlow.max='9';
+    inpGlow.value = item.glow;
+    inpGlow.id = 'tbl-glow-'+item.id;
+    inpGlow.addEventListener('change', ()=>{
+      let v = Math.round(Number(inpGlow.value));
+      if(!Number.isFinite(v)) v = item.glow;
+      v = Math.max(1, Math.min(9, v));
+      inpGlow.value = v;
+      const before = snapshot();
+      item.glow = v;
+      commit(before);
+      applyGlow(inpText, v);
+      renderListAndFieldOnly();
+    });
+    tdGlow.appendChild(inpGlow);
+
+    const tdDel = document.createElement('td');
+    const delBtn = document.createElement('button');
+    delBtn.className = 'row-del';
+    delBtn.type = 'button';
+    delBtn.innerHTML = ICONS.trash;
+    delBtn.addEventListener('click', ()=>{
+      const before = snapshot();
+      state.items = state.items.filter(it=>it.id!==item.id);
+      commit(before);
+      renderAll();
+    });
+    tdDel.appendChild(delBtn);
+
+    tr.appendChild(tdText); tr.appendChild(tdGlow); tr.appendChild(tdDel);
+    tableBody.appendChild(tr);
+  });
+}
+function renderListAndFieldOnly(){ renderList(); renderField(); }
+
+tableAddRow.addEventListener('click', ()=>{
+  const before = snapshot();
+  const pos = getDefaultFieldPosition();
+  const rec = {id:genId(), text:'New item', glow:1, x:pos.x, y:pos.y};
+  state.items.push(rec);
+  commit(before);
+  renderTable();
+  renderListAndFieldOnly();
+  const inp = document.getElementById('tbl-text-'+rec.id);
+  if(inp){ inp.focus(); inp.select(); inp.scrollIntoView({block:'center'}); }
+});
+
+/* ============================== render all ============================== */
+function renderAll(){
+  renderList();
+  renderField();
+  renderSparkles();
+  if(!tableView.hidden) renderTable();
+  sparkleToggle.checked = !!state.settings.sparkles;
+  syncDefaultViewToggle();
+}
+
+/* ============================== init ============================== */
+attachViewportGestures(listViewport, listCanvas, 'list', applyListTransform);
+attachViewportGestures(fieldViewport, fieldCanvas, 'field', applyFieldTransform);
+
+// Track the pointer's raw screen position and where within the touched item
+// it grabbed, so on drop we know roughly where the floating drag clone last
+// was — used to animate the item settling in from there instead of popping
+// straight into its slot.
+let listGrabOffset = {x:0, y:0};
+let listLastPointer = {x:0, y:0};
+listCanvas.addEventListener('pointerdown', (e)=>{
+  const itemEl = e.target.closest('.list-item');
+  if(!itemEl) return;
+  const r = itemEl.getBoundingClientRect();
+  listGrabOffset.x = e.clientX - r.left;
+  listGrabOffset.y = e.clientY - r.top;
+  listLastPointer.x = e.clientX; listLastPointer.y = e.clientY;
+});
+document.addEventListener('pointermove', (e)=>{
+  listLastPointer.x = e.clientX; listLastPointer.y = e.clientY;
+});
+
+let listDragStarted = false;
+let listJustDragged = false;
+Sortable.create(listCanvas, {
+  // No handle, no delay: a timer-based "hold, then drag" approach (Sortable's
+  // delay option) turned out to not reliably trigger on real iPhone touch.
+  // This instead disambiguates purely on movement distance (fallbackTolerance),
+  // the same immediate/movement-based pattern the field view already uses
+  // successfully — drag starts as soon as you move past the tolerance, tap
+  // opens edit if you release before that.
+  animation: 220,
+  easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  chosenClass: 'dragging',
+  ghostClass: 'list-item-ghost',
+  dragClass: 'list-item-flying',
+  forceFallback: true,
+  fallbackOnBody: true,
+  fallbackTolerance: 7,
+  onStart: ()=>{
+    listDragStarted = true;
+    if(navigator.vibrate) navigator.vibrate(12);
+  },
+  onEnd: (evt)=>{
+    const wasStarted = listDragStarted;
+    listDragStarted = false;
+    // Tap-to-edit is handled by each item's own 'click' listener, which is
+    // more reliable than Sortable's own tap/drag disambiguation here — this
+    // just needs to suppress that click for a moment after a real drag, so
+    // dropping an item doesn't also pop its edit sheet open.
+    if(!wasStarted) return;
+    listJustDragged = true;
+    setTimeout(()=>{ listJustDragged = false; }, 400);
+
+    // Settle-in animation: place the item where the clone/finger last was,
+    // then transition it to its real (already-correct) position.
+    const itemEl = evt.item;
+    const finalRect = itemEl.getBoundingClientRect();
+    const cloneLeft = listLastPointer.x - listGrabOffset.x;
+    const cloneTop = listLastPointer.y - listGrabOffset.y;
+    const dx = cloneLeft - finalRect.left;
+    const dy = cloneTop - finalRect.top;
+    itemEl.style.transition = 'none';
+    itemEl.style.transform = `translate(${dx}px, ${dy}px)`;
+    void itemEl.offsetHeight;
+    itemEl.style.transition = 'transform 220ms cubic-bezier(0.4,0,0.2,1), border-color .15s, box-shadow .2s, opacity .2s';
+    itemEl.style.transform = '';
+    setTimeout(()=>{ itemEl.style.transition=''; itemEl.style.transform=''; }, 260);
+
+    const idOrder = Array.from(listCanvas.children).map(c=>c.dataset.id);
+    const byId = new Map(state.items.map(it=>[it.id,it]));
+    const reordered = idOrder.map(id=>byId.get(id)).filter(Boolean);
+    if(reordered.length!==state.items.length) return;
+    const changed = reordered.some((it,i)=>it!==state.items[i]);
+    if(!changed) return;
+    const before = snapshot();
+    state.items = reordered;
+    commit(before);
+  }
+});
+
+setViewMode(state.settings.defaultView==='field' ? 'field' : 'list', true);
+if(!state.settings.hasSeenIntro) openIntro();
+renderAll();
+updateUndoRedoButtons();
+
+window.addEventListener('keydown', (e)=>{
+  if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='z' && !e.shiftKey && editOverlay.hidden){ e.preventDefault(); doUndo(); }
+  if((e.metaKey||e.ctrlKey) && (e.key.toLowerCase()==='y' || (e.key.toLowerCase()==='z' && e.shiftKey)) && editOverlay.hidden){ e.preventDefault(); doRedo(); }
+});
+undoBtn.addEventListener('click', doUndo);
+redoBtn.addEventListener('click', doRedo);
+
+})();
+</script>
+
+</body></html>
