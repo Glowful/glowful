@@ -6,7 +6,7 @@ This is the app my brain needs!!!
 For fun ideas!!!!!
 
 Let's see how it goes using AI<sup>*</sup>! Try it out!!! https://glowful.github.io/glowful/
-</div> ··
+</div> 
 
 
    <sup>*</sup>*Very concerned about AI with the data center unethical impacts to people and environments, as well as systematic perpetuation of bias, inaccuracy, and uncredited use of source data*
