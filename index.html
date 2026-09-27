@@ -894,12 +894,12 @@ function glowHsl(level){
   return `hsl(${GLOW_STOPS[0].h} ${GLOW_STOPS[0].s}% ${GLOW_STOPS[0].l}%)`;
 }
 // Growth curve used everywhere glow SIZE/intensity scales with level: 1:1
-// per level up to 6 (unchanged from before), then slower growth from 6-9 so
-// the top of the range doesn't overshoot into "too much" the way a
-// straight (level-1) multiplier did, while staying strictly increasing.
+// per level up to 4, then flat — levels 5-9 render at the same size/
+// intensity as level 4 (only the colour keeps progressing through those
+// levels), since glow size at 4 was already judged to be enough.
 function glowGrowth(level){
   level = Math.max(1, Math.min(9, level));
-  return level<=6 ? (level-1) : 5 + (level-6)*0.6;
+  return Math.min(level, 4) - 1;
 }
 function glowStyle(level){
   const color = glowHsl(level);
