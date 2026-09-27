@@ -1,11 +1,16 @@
-✨Glowful website for fun things you want to get around to!! ✨
+<div align="center"><span style="font-size:32px;">✨Glowful website for fun things you want to get around to!! ✨</span>
 
 I am often writing to-do lists and realising I keep thinking "oh yeah I really want to do that thing....."
 
 This is the app my brain needs!!!
 For fun ideas!!!!!
 
-Let's see how it goes using AI! Try it out!!! https://glowful.github.io/glowful/
+Let's see how it goes using AI<sup>*</sup>! Try it out!!! https://glowful.github.io/glowful/
+</div> ··
+
+
+   <sup>*</sup>*Very concerned about AI with the data center unethical impacts to people and environments, as well as systematic perpetuation of bias, inaccuracy, and uncredited use of source data*
+     
 
 <img width="300"  alt="image1" src="https://github.com/user-attachments/assets/b65c67c6-8712-4eab-8d86-89dd0a6dc04f" />
 <img width="300"  alt="image0" src="https://github.com/user-attachments/assets/44bc9cc6-d83c-4869-a919-8fd94751b75a" />
